@@ -138,6 +138,61 @@ def create_widget_html(tasks: List[Dict[str, Any]]) -> str:
     return html_template
 
 
+def create_simple_card_html(tasks: List[Dict[str, Any]]) -> str:
+    """Crea una card HTML simple y minimalista con las tareas"""
+    incomplete = sum(1 for t in tasks if not t["completed"])
+    completed = sum(1 for t in tasks if t["completed"])
+    
+    # Generar items de tareas
+    task_items = ""
+    for task in tasks[:5]:  # Solo mostrar las primeras 5
+        status = "✅" if task["completed"] else "⬜"
+        priority_color = {"high": "#ef4444", "medium": "#f59e0b", "low": "#10b981"}.get(task["priority"], "#6b7280")
+        opacity = "0.6" if task["completed"] else "1"
+        text_decoration = "line-through" if task["completed"] else "none"
+        
+        task_items += f"""
+        <div style="display: flex; align-items: start; gap: 8px; padding: 8px; border-left: 3px solid {priority_color}; background: rgba(0,0,0,0.02); border-radius: 4px; margin-bottom: 8px; opacity: {opacity};">
+            <span style="font-size: 16px;">{status}</span>
+            <div style="flex: 1;">
+                <div style="font-weight: 600; color: #1f2937; text-decoration: {text_decoration};">{task['title']}</div>
+                {f"<div style='font-size: 13px; color: #6b7280; margin-top: 2px;'>{task.get('description', '')}</div>" if task.get('description') else ""}
+                {f"<div style='font-size: 12px; color: #9ca3af; margin-top: 4px;'>📅 {task.get('dueDate', '')}</div>" if task.get('dueDate') else ""}
+            </div>
+        </div>
+        """
+    
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Task Summary</title>
+    </head>
+    <body style="margin: 0; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <div style="max-width: 500px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 20px; border: 1px solid #e5e7eb;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h2 style="margin: 0; font-size: 20px; color: #111827;">📋 Mis Tareas</h2>
+                <div style="display: flex; gap: 12px; font-size: 14px;">
+                    <span style="background: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 12px; font-weight: 600;">⬜ {incomplete}</span>
+                    <span style="background: #d1fae5; color: #065f46; padding: 4px 10px; border-radius: 12px; font-weight: 600;">✅ {completed}</span>
+                </div>
+            </div>
+            <div style="margin-top: 16px;">
+                {task_items}
+            </div>
+            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e5e7eb; text-align: center;">
+                <a href="{BASE_URL}/widget" target="_blank" style="color: #2563eb; text-decoration: none; font-size: 14px; font-weight: 500;">🔗 Ver widget completo →</a>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    return html
+
+
 # Configurar FastAPI
 app = FastAPI(
     title="Task Manager Demo Server",
@@ -214,6 +269,13 @@ async def get_widget():
     """Obtener el widget HTML con los datos actuales"""
     widget_html = create_widget_html(tasks_db)
     return HTMLResponse(content=widget_html)
+
+
+@app.get("/card", response_class=HTMLResponse)
+async def get_card():
+    """Obtener una card HTML simple con las tareas"""
+    card_html = create_simple_card_html(tasks_db)
+    return HTMLResponse(content=card_html)
 
 
 # Endpoints compatibles con MCP (simplificados pero correctos)
@@ -298,21 +360,10 @@ async def mcp_handler(request: Dict[str, Any]):
             incomplete = sum(1 for t in tasks_db if not t["completed"])
             completed = sum(1 for t in tasks_db if t["completed"])
             
-            # Crear lista formateada de tareas
-            tasks_text = f"Tienes {incomplete} tarea(s) pendiente(s) y {completed} completada(s).\n\n"
+            # Crear card HTML simple
+            card_html = create_simple_card_html(tasks_db)
             
-            for task in tasks_db:
-                status = "✅" if task["completed"] else "⬜"
-                priority_emoji = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(task["priority"], "⚪")
-                tasks_text += f"{status} {priority_emoji} **{task['title']}**\n"
-                if task.get("description"):
-                    tasks_text += f"   {task['description']}\n"
-                if task.get("dueDate"):
-                    tasks_text += f"   📅 {task['dueDate']}\n"
-                tasks_text += "\n"
-            
-            tasks_text += f"\n🔗 Ver widget interactivo: {BASE_URL}/widget"
-            
+            # Intentar múltiples formatos de embedding
             return {
                 "jsonrpc": "2.0",
                 "id": request_id,
@@ -320,7 +371,15 @@ async def mcp_handler(request: Dict[str, Any]):
                     "content": [
                         {
                             "type": "text",
-                            "text": tasks_text
+                            "text": f"📋 Tienes {incomplete} tarea(s) pendiente(s) y {completed} completada(s)."
+                        },
+                        {
+                            "type": "resource",
+                            "resource": {
+                                "uri": f"{BASE_URL}/card",
+                                "mimeType": "text/html",
+                                "text": card_html
+                            }
                         }
                     ]
                 }
