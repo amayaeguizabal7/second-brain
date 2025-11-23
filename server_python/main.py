@@ -295,11 +295,24 @@ async def mcp_handler(request: Dict[str, Any]):
         arguments = params.get("arguments", {})
         
         if tool_name == "get_tasks":
-            widget_html = create_widget_html(tasks_db)
             incomplete = sum(1 for t in tasks_db if not t["completed"])
             completed = sum(1 for t in tasks_db if t["completed"])
             
-            # Formato alternativo: embedded resource
+            # Crear lista formateada de tareas
+            tasks_text = f"Tienes {incomplete} tarea(s) pendiente(s) y {completed} completada(s).\n\n"
+            
+            for task in tasks_db:
+                status = "✅" if task["completed"] else "⬜"
+                priority_emoji = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(task["priority"], "⚪")
+                tasks_text += f"{status} {priority_emoji} **{task['title']}**\n"
+                if task.get("description"):
+                    tasks_text += f"   {task['description']}\n"
+                if task.get("dueDate"):
+                    tasks_text += f"   📅 {task['dueDate']}\n"
+                tasks_text += "\n"
+            
+            tasks_text += f"\n🔗 Ver widget interactivo: {BASE_URL}/widget"
+            
             return {
                 "jsonrpc": "2.0",
                 "id": request_id,
@@ -307,14 +320,7 @@ async def mcp_handler(request: Dict[str, Any]):
                     "content": [
                         {
                             "type": "text",
-                            "text": f"Tienes {incomplete} tarea(s) pendiente(s) y {completed} completada(s)."
-                        },
-                        {
-                            "type": "resource",
-                            "resource": {
-                                "uri": f"data:text/html;base64,{__import__('base64').b64encode(widget_html.encode()).decode()}",
-                                "mimeType": "text/html"
-                            }
+                            "text": tasks_text
                         }
                     ]
                 }
@@ -330,7 +336,8 @@ async def mcp_handler(request: Dict[str, Any]):
                 "priority": arguments.get("priority", "medium"),
             }
             tasks_db.append(new_task)
-            widget_html = create_widget_html(tasks_db)
+            
+            priority_emoji = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(new_task["priority"], "⚪")
             
             return {
                 "jsonrpc": "2.0",
@@ -339,14 +346,7 @@ async def mcp_handler(request: Dict[str, Any]):
                     "content": [
                         {
                             "type": "text",
-                            "text": f"✓ Tarea creada: {new_task['title']}"
-                        },
-                        {
-                            "type": "resource",
-                            "resource": {
-                                "uri": f"data:text/html;base64,{__import__('base64').b64encode(widget_html.encode()).decode()}",
-                                "mimeType": "text/html"
-                            }
+                            "text": f"✓ Tarea creada: {priority_emoji} **{new_task['title']}**\n\n🔗 Ver todas las tareas: {BASE_URL}/widget"
                         }
                     ]
                 }
@@ -368,8 +368,8 @@ async def mcp_handler(request: Dict[str, Any]):
                 }
             
             task["completed"] = completed
-            status = "completada" if completed else "pendiente"
-            widget_html = create_widget_html(tasks_db)
+            status_emoji = "✅" if completed else "⬜"
+            status_text = "completada" if completed else "pendiente"
             
             return {
                 "jsonrpc": "2.0",
@@ -378,14 +378,7 @@ async def mcp_handler(request: Dict[str, Any]):
                     "content": [
                         {
                             "type": "text",
-                            "text": f"✓ Tarea marcada como {status}: {task['title']}"
-                        },
-                        {
-                            "type": "resource",
-                            "resource": {
-                                "uri": f"data:text/html;base64,{__import__('base64').b64encode(widget_html.encode()).decode()}",
-                                "mimeType": "text/html"
-                            }
+                            "text": f"{status_emoji} Tarea marcada como {status_text}: **{task['title']}**\n\n🔗 Ver todas las tareas: {BASE_URL}/widget"
                         }
                     ]
                 }
