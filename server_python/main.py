@@ -360,10 +360,28 @@ async def mcp_handler(request: Dict[str, Any]):
             incomplete = sum(1 for t in tasks_db if not t["completed"])
             completed = sum(1 for t in tasks_db if t["completed"])
             
-            # Crear card HTML simple
-            card_html = create_simple_card_html(tasks_db)
+            # Crear lista formateada de tareas
+            tasks_text = f"📋 **Resumen de Tareas**\n\n"
+            tasks_text += f"⬜ Pendientes: **{incomplete}** | ✅ Completadas: **{completed}**\n\n"
             
-            # Intentar múltiples formatos de embedding
+            if incomplete > 0:
+                tasks_text += "**Tareas Pendientes:**\n"
+                for task in [t for t in tasks_db if not t["completed"]]:
+                    priority_emoji = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(task["priority"], "⚪")
+                    tasks_text += f"\n{priority_emoji} **{task['title']}**"
+                    if task.get("description"):
+                        tasks_text += f"\n   _{task['description']}_"
+                    if task.get("dueDate"):
+                        tasks_text += f"\n   📅 {task['dueDate']}"
+                    tasks_text += "\n"
+            
+            if completed > 0:
+                tasks_text += "\n**Tareas Completadas:**\n"
+                for task in [t for t in tasks_db if t["completed"]]:
+                    tasks_text += f"\n✅ ~~{task['title']}~~"
+            
+            tasks_text += f"\n\n🎨 **[Ver widget interactivo]({BASE_URL}/card)** con diseño completo"
+            
             return {
                 "jsonrpc": "2.0",
                 "id": request_id,
@@ -371,15 +389,7 @@ async def mcp_handler(request: Dict[str, Any]):
                     "content": [
                         {
                             "type": "text",
-                            "text": f"📋 Tienes {incomplete} tarea(s) pendiente(s) y {completed} completada(s)."
-                        },
-                        {
-                            "type": "resource",
-                            "resource": {
-                                "uri": f"{BASE_URL}/card",
-                                "mimeType": "text/html",
-                                "text": card_html
-                            }
+                            "text": tasks_text
                         }
                     ]
                 }
