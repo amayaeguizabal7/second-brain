@@ -306,14 +306,11 @@ async def mcp_handler(request: Dict[str, Any]):
                     "content": [
                         {
                             "type": "text",
-                            "text": f"Tienes {incomplete} tarea(s) pendiente(s) y {completed} completada(s)."
-                        },
-                        {
-                            "type": "resource",
-                            "resource": {
-                                "uri": f"{BASE_URL}/task-manager-widget",
-                                "mimeType": "text/html",
-                                "text": widget_html
+                            "text": f"Tienes {incomplete} tarea(s) pendiente(s) y {completed} completada(s).",
+                            "_meta": {
+                                "openai/outputTemplate": {
+                                    "html": widget_html
+                                }
                             }
                         }
                     ]
@@ -339,14 +336,11 @@ async def mcp_handler(request: Dict[str, Any]):
                     "content": [
                         {
                             "type": "text",
-                            "text": f"✓ Tarea creada: {new_task['title']}"
-                        },
-                        {
-                            "type": "resource",
-                            "resource": {
-                                "uri": f"{BASE_URL}/task-manager-widget",
-                                "mimeType": "text/html",
-                                "text": widget_html
+                            "text": f"✓ Tarea creada: {new_task['title']}",
+                            "_meta": {
+                                "openai/outputTemplate": {
+                                    "html": widget_html
+                                }
                             }
                         }
                     ]
@@ -379,14 +373,11 @@ async def mcp_handler(request: Dict[str, Any]):
                     "content": [
                         {
                             "type": "text",
-                            "text": f"✓ Tarea marcada como {status}: {task['title']}"
-                        },
-                        {
-                            "type": "resource",
-                            "resource": {
-                                "uri": f"{BASE_URL}/task-manager-widget",
-                                "mimeType": "text/html",
-                                "text": widget_html
+                            "text": f"✓ Tarea marcada como {status}: {task['title']}",
+                            "_meta": {
+                                "openai/outputTemplate": {
+                                    "html": widget_html
+                                }
                             }
                         }
                     ]
