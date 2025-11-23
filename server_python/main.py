@@ -213,14 +213,44 @@ async def get_widget():
 @app.get("/mcp")
 async def mcp_info():
     """Información del servidor MCP - Compatible con ChatGPT"""
+    # Devolver las herramientas disponibles directamente
     return {
-        "name": "Task Manager MCP Server",
-        "version": "1.0.0",
-        "description": "Servidor MCP para gestión de tareas con widgets interactivos",
-        "protocol_version": "2024-11-05",
-        "capabilities": {
-            "tools": {}
-        }
+        "tools": [
+            {
+                "name": "get_tasks",
+                "description": "Obtiene todas las tareas del usuario con un widget interactivo",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {},
+                }
+            },
+            {
+                "name": "create_task",
+                "description": "Crea una nueva tarea",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "title": {"type": "string", "description": "Título de la tarea"},
+                        "description": {"type": "string", "description": "Descripción detallada (opcional)"},
+                        "dueDate": {"type": "string", "description": "Fecha de vencimiento en formato YYYY-MM-DD (opcional)"},
+                        "priority": {"type": "string", "enum": ["low", "medium", "high"], "description": "Prioridad de la tarea", "default": "medium"},
+                    },
+                    "required": ["title"],
+                }
+            },
+            {
+                "name": "update_task_status",
+                "description": "Actualiza el estado de completado de una tarea",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "task_id": {"type": "string", "description": "ID de la tarea a actualizar"},
+                        "completed": {"type": "boolean", "description": "Nuevo estado de completado"},
+                    },
+                    "required": ["task_id", "completed"],
+                }
+            }
+        ]
     }
 
 
