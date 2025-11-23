@@ -16,7 +16,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 # Configuración
-BASE_URL = os.environ.get("BASE_URL", "http://localhost:4444")
+BASE_URL = os.environ.get("BASE_URL", "https://app-gpt-s9jl.onrender.com")
 ASSETS_DIR = Path(__file__).parent.parent / "dist"
 
 # Base de datos simple en memoria
@@ -209,48 +209,191 @@ async def get_widget():
     return HTMLResponse(content=widget_html)
 
 
-# Endpoints compatibles con MCP (simplificados)
-@app.get("/mcp")
-async def mcp_info():
-    """Información del servidor MCP - Compatible con ChatGPT"""
-    # Devolver las herramientas disponibles directamente
-    return {
-        "tools": [
-            {
-                "name": "get_tasks",
-                "description": "Obtiene todas las tareas del usuario con un widget interactivo",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {},
-                }
-            },
-            {
-                "name": "create_task",
-                "description": "Crea una nueva tarea",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "title": {"type": "string", "description": "Título de la tarea"},
-                        "description": {"type": "string", "description": "Descripción detallada (opcional)"},
-                        "dueDate": {"type": "string", "description": "Fecha de vencimiento en formato YYYY-MM-DD (opcional)"},
-                        "priority": {"type": "string", "enum": ["low", "medium", "high"], "description": "Prioridad de la tarea", "default": "medium"},
-                    },
-                    "required": ["title"],
-                }
-            },
-            {
-                "name": "update_task_status",
-                "description": "Actualiza el estado de completado de una tarea",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "task_id": {"type": "string", "description": "ID de la tarea a actualizar"},
-                        "completed": {"type": "boolean", "description": "Nuevo estado de completado"},
-                    },
-                    "required": ["task_id", "completed"],
+# Endpoints compatibles con MCP (simplificados pero correctos)
+@app.post("/mcp")
+async def mcp_handler(request: Dict[str, Any]):
+    """
+    Manejador principal MCP - Compatible con ChatGPT
+    Recibe mensajes en formato JSON-RPC 2.0
+    """
+    method = request.get("method", "")
+    params = request.get("params", {})
+    request_id = request.get("id")
+    
+    # Initialize
+    if method == "initialize":
+        return {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "result": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {
+                    "tools": {}
+                },
+                "serverInfo": {
+                    "name": "Task Manager MCP Server",
+                    "version": "1.0.0"
                 }
             }
-        ]
+        }
+    
+    # List Tools
+    elif method == "tools/list":
+        return {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "result": {
+                "tools": [
+                    {
+                        "name": "get_tasks",
+                        "description": "Obtiene todas las tareas del usuario con un widget interactivo",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {},
+                        }
+                    },
+                    {
+                        "name": "create_task",
+                        "description": "Crea una nueva tarea",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {
+                                "title": {"type": "string", "description": "Título de la tarea"},
+                                "description": {"type": "string", "description": "Descripción detallada"},
+                                "dueDate": {"type": "string", "description": "Fecha YYYY-MM-DD"},
+                                "priority": {"type": "string", "enum": ["low", "medium", "high"], "default": "medium"},
+                            },
+                            "required": ["title"],
+                        }
+                    },
+                    {
+                        "name": "update_task_status",
+                        "description": "Actualiza el estado de una tarea",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {
+                                "task_id": {"type": "string", "description": "ID de la tarea"},
+                                "completed": {"type": "boolean", "description": "Estado completado"},
+                            },
+                            "required": ["task_id", "completed"],
+                        }
+                    }
+                ]
+            }
+        }
+    
+    # Call Tool
+    elif method == "tools/call":
+        tool_name = params.get("name")
+        arguments = params.get("arguments", {})
+        
+        if tool_name == "get_tasks":
+            widget_html = create_widget_html(tasks_db)
+            incomplete = sum(1 for t in tasks_db if not t["completed"])
+            completed = sum(1 for t in tasks_db if t["completed"])
+            
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": f"Tienes {incomplete} tarea(s) pendiente(s) y {completed} completada(s)."
+                        },
+                        {
+                            "type": "resource",
+                            "resource": {
+                                "uri": f"{BASE_URL}/task-manager-widget",
+                                "mimeType": "text/html",
+                                "text": widget_html
+                            }
+                        }
+                    ]
+                }
+            }
+        
+        elif tool_name == "create_task":
+            new_task = {
+                "id": str(len(tasks_db) + 1),
+                "title": arguments.get("title", "Nueva tarea"),
+                "description": arguments.get("description"),
+                "dueDate": arguments.get("dueDate"),
+                "completed": False,
+                "priority": arguments.get("priority", "medium"),
+            }
+            tasks_db.append(new_task)
+            widget_html = create_widget_html(tasks_db)
+            
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": f"✓ Tarea creada: {new_task['title']}"
+                        },
+                        {
+                            "type": "resource",
+                            "resource": {
+                                "uri": f"{BASE_URL}/task-manager-widget",
+                                "mimeType": "text/html",
+                                "text": widget_html
+                            }
+                        }
+                    ]
+                }
+            }
+        
+        elif tool_name == "update_task_status":
+            task_id = arguments.get("task_id")
+            completed = arguments.get("completed")
+            task = next((t for t in tasks_db if t["id"] == task_id), None)
+            
+            if not task:
+                return {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "error": {
+                        "code": -32602,
+                        "message": f"Tarea {task_id} no encontrada"
+                    }
+                }
+            
+            task["completed"] = completed
+            status = "completada" if completed else "pendiente"
+            widget_html = create_widget_html(tasks_db)
+            
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": f"✓ Tarea marcada como {status}: {task['title']}"
+                        },
+                        {
+                            "type": "resource",
+                            "resource": {
+                                "uri": f"{BASE_URL}/task-manager-widget",
+                                "mimeType": "text/html",
+                                "text": widget_html
+                            }
+                        }
+                    ]
+                }
+            }
+    
+    # Método no soportado
+    return {
+        "jsonrpc": "2.0",
+        "id": request_id,
+        "error": {
+            "code": -32601,
+            "message": f"Método no soportado: {method}"
+        }
     }
 
 
@@ -260,131 +403,13 @@ async def mcp_options():
     return {}
 
 
+# Endpoint GET para testing/debugging (opcional)
 @app.get("/mcp/tools")
-async def list_mcp_tools():
-    """Lista las herramientas disponibles (formato MCP simplificado)"""
+async def list_tools_get():
+    """Lista las herramientas disponibles (para debugging)"""
     return {
-        "tools": [
-            {
-                "name": "get_tasks",
-                "description": "Obtiene todas las tareas del usuario con un widget interactivo",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {},
-                }
-            },
-            {
-                "name": "create_task",
-                "description": "Crea una nueva tarea",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "title": {
-                            "type": "string",
-                            "description": "Título de la tarea",
-                        },
-                        "description": {
-                            "type": "string",
-                            "description": "Descripción detallada (opcional)",
-                        },
-                        "dueDate": {
-                            "type": "string",
-                            "description": "Fecha de vencimiento en formato YYYY-MM-DD (opcional)",
-                        },
-                        "priority": {
-                            "type": "string",
-                            "enum": ["low", "medium", "high"],
-                            "description": "Prioridad de la tarea",
-                            "default": "medium",
-                        },
-                    },
-                    "required": ["title"],
-                }
-            },
-            {
-                "name": "update_task_status",
-                "description": "Actualiza el estado de completado de una tarea",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "task_id": {
-                            "type": "string",
-                            "description": "ID de la tarea a actualizar",
-                        },
-                        "completed": {
-                            "type": "boolean",
-                            "description": "Nuevo estado de completado",
-                        },
-                    },
-                    "required": ["task_id", "completed"],
-                }
-            }
-        ]
-    }
-
-
-@app.post("/mcp/call")
-async def call_mcp_tool(request: Dict[str, Any]):
-    """Ejecuta una herramienta MCP (formato simplificado)"""
-    tool_name = request.get("name")
-    arguments = request.get("arguments", {})
-    
-    if tool_name == "get_tasks":
-        widget_html = create_widget_html(tasks_db)
-        incomplete_count = sum(1 for t in tasks_db if not t["completed"])
-        completed_count = sum(1 for t in tasks_db if t["completed"])
-        
-        return {
-            "result": {
-                "text": f"Tienes {incomplete_count} tarea(s) pendiente(s) y {completed_count} completada(s).",
-                "widget": widget_html
-            }
-        }
-    
-    elif tool_name == "create_task":
-        new_task = {
-            "id": str(len(tasks_db) + 1),
-            "title": arguments["title"],
-            "description": arguments.get("description"),
-            "dueDate": arguments.get("dueDate"),
-            "completed": False,
-            "priority": arguments.get("priority", "medium"),
-        }
-        tasks_db.append(new_task)
-        
-        widget_html = create_widget_html(tasks_db)
-        
-        return {
-            "result": {
-                "text": f"✓ Tarea creada: {new_task['title']}",
-                "widget": widget_html
-            }
-        }
-    
-    elif tool_name == "update_task_status":
-        task_id = arguments["task_id"]
-        completed = arguments["completed"]
-        
-        task = next((t for t in tasks_db if t["id"] == task_id), None)
-        if not task:
-            return {
-                "error": f"Tarea con ID {task_id} no encontrada"
-            }
-        
-        task["completed"] = completed
-        status_text = "completada" if completed else "pendiente"
-        
-        widget_html = create_widget_html(tasks_db)
-        
-        return {
-            "result": {
-                "text": f"✓ Tarea marcada como {status_text}: {task['title']}",
-                "widget": widget_html
-            }
-        }
-    
-    return {
-        "error": f"Herramienta '{tool_name}' no reconocida"
+        "tools": ["get_tasks", "create_task", "update_task_status"],
+        "note": "Use POST /mcp with JSON-RPC 2.0 format for actual MCP communication"
     }
 
 
