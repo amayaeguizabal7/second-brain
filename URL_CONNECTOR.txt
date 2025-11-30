@@ -1,0 +1,9 @@
+URL para el Conector de ChatGPT (MCP):
+
+https://second-brain-4ijd.onrender.com/mcp
+
+Configuración:
+- Name: Second Brain
+- Type: MCP
+- URL: https://second-brain-4ijd.onrender.com/mcp
+

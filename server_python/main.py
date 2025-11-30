@@ -279,6 +279,22 @@ async def get_note(note_id: str):
     return note
 
 
+@app.delete("/notes/{note_id}")
+async def delete_note(note_id: str):
+    """Eliminar una nota"""
+    note_index = None
+    for i, note in enumerate(notes_db):
+        if note["id"] == note_id:
+            note_index = i
+            break
+    
+    if note_index is None:
+        raise HTTPException(status_code=404, detail="Nota no encontrada")
+    
+    deleted_note = notes_db.pop(note_index)
+    return {"message": f"Nota '{deleted_note['title']}' eliminada correctamente", "id": note_id}
+
+
 @app.get("/widget", response_class=HTMLResponse)
 async def get_widget():
     """Obtener el widget HTML con los datos actuales"""
@@ -426,6 +442,22 @@ async def mcp_handler(request: Dict[str, Any]):
                             "openai/toolInvocation/invoking": "Buscando nota",
                             "openai/toolInvocation/invoked": "Nota encontrada"
                         }
+                    },
+                    {
+                        "name": "delete_note",
+                        "description": "Elimina una nota del Second Brain por su ID",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {
+                                "note_id": {"type": "string", "description": "ID de la nota a eliminar"},
+                            },
+                            "required": ["note_id"],
+                        },
+                        "_meta": {
+                            "openai/outputTemplate": "ui://widget/second-brain.html",
+                            "openai/toolInvocation/invoking": "Eliminando nota",
+                            "openai/toolInvocation/invoked": "Nota eliminada"
+                        }
                     }
                 ]
             }
@@ -514,6 +546,50 @@ async def mcp_handler(request: Dict[str, Any]):
                     }
                 }
             }
+        
+        elif tool_name == "delete_note":
+            note_id = arguments.get("note_id")
+            note_index = None
+            
+            # Buscar la nota por ID
+            for i, note in enumerate(notes_db):
+                if note["id"] == note_id:
+                    note_index = i
+                    break
+            
+            if note_index is None:
+                return {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "error": {
+                        "code": -32602,
+                        "message": f"Nota {note_id} no encontrada"
+                    }
+                }
+            
+            # Guardar el título antes de eliminar para el mensaje
+            deleted_note = notes_db[note_index]
+            deleted_title = deleted_note["title"]
+            
+            # Eliminar la nota
+            notes_db.pop(note_index)
+            
+            # Formato oficial OpenAI Apps SDK
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": f"Nota eliminada: \"{deleted_title}\"."
+                        }
+                    ],
+                    "structuredContent": {
+                        "notes": notes_db
+                    }
+                }
+            }
     
     # Método no soportado
     return {
@@ -537,7 +613,7 @@ async def mcp_options():
 async def list_tools_get():
     """Lista las herramientas disponibles (para debugging)"""
     return {
-        "tools": ["get_notes", "create_note", "get_note"],
+        "tools": ["get_notes", "create_note", "get_note", "delete_note"],
         "note": "Use POST /mcp with JSON-RPC 2.0 format for actual MCP communication"
     }
 
