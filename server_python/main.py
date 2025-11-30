@@ -17,7 +17,12 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 # Configuración
-BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000")
+# Intentar obtener BASE_URL de la variable de entorno, si no, usar la URL del request
+BASE_URL = os.environ.get("BASE_URL")
+if not BASE_URL:
+    # Si no está configurada, intentar detectar desde RENDER_EXTERNAL_URL
+    BASE_URL = os.environ.get("RENDER_EXTERNAL_URL", "http://localhost:8000")
+
 ASSETS_DIR = Path(__file__).parent.parent / "dist"
 
 # Base de datos simple en memoria
@@ -106,11 +111,19 @@ def load_widget_html(widget_name: str) -> str:
     
     html_content = html_file.read_text()
     
-    # Reemplazar rutas relativas con la URL base
-    html_content = html_content.replace('="/assets/', f'="{BASE_URL}/assets/')
-    html_content = html_content.replace("'/assets/", f"'{BASE_URL}/assets/")
-    html_content = html_content.replace('="./assets/', f'="{BASE_URL}/assets/')
-    html_content = html_content.replace("'./assets/", f"'{BASE_URL}/assets/")
+    # Reemplazar rutas absolutas y relativas con la URL base completa
+    # Manejar diferentes formatos de rutas de assets
+    import re
+    
+    # Reemplazar rutas absolutas que empiezan con /assets/
+    html_content = re.sub(r'src="/assets/', f'src="{BASE_URL}/assets/', html_content)
+    html_content = re.sub(r'href="/assets/', f'href="{BASE_URL}/assets/', html_content)
+    html_content = re.sub(r"src='/assets/", f"src='{BASE_URL}/assets/", html_content)
+    html_content = re.sub(r"href='/assets/", f"href='{BASE_URL}/assets/", html_content)
+    
+    # También reemplazar rutas relativas
+    html_content = re.sub(r'src="./assets/', f'src="{BASE_URL}/assets/', html_content)
+    html_content = re.sub(r'href="./assets/', f'href="{BASE_URL}/assets/', html_content)
     
     return html_content
 
