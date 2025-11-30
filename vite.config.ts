@@ -13,12 +13,11 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        'task-manager': './src/task-manager/index.html',
+        'second-brain': './src/second-brain/index.html',
       },
       output: {
         entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]',
         assetFileNames: (assetInfo) => {
           if (assetInfo.name?.endsWith('.html')) {
             return '[name]-[hash][extname]';

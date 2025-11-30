@@ -1,6 +1,6 @@
 """
-Servidor de ejemplo para Task Manager
-API REST simple que sirve el widget de tareas
+Servidor de ejemplo para Second Brain
+API REST simple que sirve el widget de notas y conocimiento
 """
 
 import os
@@ -17,50 +17,46 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 # Configuración
-BASE_URL = os.environ.get("BASE_URL", "https://app-gpt-s9jl.onrender.com")
+BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000")
 ASSETS_DIR = Path(__file__).parent.parent / "dist"
 
 # Base de datos simple en memoria
-tasks_db = [
+notes_db = [
     {
         "id": "1",
-        "title": "Revisar propuesta de diseño",
-        "description": "Analizar mockups del nuevo dashboard",
-        "dueDate": (datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d"),
-        "completed": False,
-        "priority": "high",
+        "title": "Ideas sobre arquitectura de software",
+        "description": "Reflexiones sobre patrones de diseño y arquitectura limpia",
+        "createdAt": (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%d"),
+        "category": "technology",
+        "tags": ["arquitectura", "patrones"],
     },
     {
         "id": "2",
-        "title": "Actualizar documentación",
-        "description": "Añadir ejemplos de uso del API",
-        "dueDate": (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d"),
-        "completed": False,
-        "priority": "medium",
+        "title": "Notas de lectura: Clean Code",
+        "description": "Principios clave sobre escribir código limpio y mantenible",
+        "createdAt": (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d"),
+        "category": "learning",
+        "tags": ["programación", "libros"],
     },
     {
         "id": "3",
-        "title": "Reunión de equipo",
-        "description": "Sprint planning Q1 2026",
-        "dueDate": datetime.now().strftime("%Y-%m-%d"),
-        "completed": True,
-        "priority": "low",
+        "title": "Ideas para proyecto personal",
+        "description": "Brainstorming de características para nueva aplicación",
+        "createdAt": datetime.now().strftime("%Y-%m-%d"),
+        "category": "ideas",
+        "tags": ["proyecto", "innovación"],
     },
 ]
 
 
 # Modelos de datos
-class Task(BaseModel):
+class Note(BaseModel):
     id: Optional[str] = None
-    title: str = Field(..., description="Título de la tarea")
-    description: Optional[str] = Field(None, description="Descripción detallada")
-    dueDate: Optional[str] = Field(None, description="Fecha de vencimiento (YYYY-MM-DD)")
-    priority: str = Field("medium", description="Prioridad: low, medium, high")
-    completed: bool = Field(False, description="Estado de completado")
-
-
-class TaskUpdate(BaseModel):
-    completed: bool = Field(..., description="Estado de completado")
+    title: str = Field(..., description="Título de la nota")
+    description: Optional[str] = Field(None, description="Contenido detallado de la nota")
+    createdAt: Optional[str] = Field(None, description="Fecha de creación (YYYY-MM-DD)")
+    category: str = Field("general", description="Categoría: general, technology, learning, ideas, etc.")
+    tags: List[str] = Field(default_factory=list, description="Lista de etiquetas")
 
 
 @lru_cache(maxsize=10)
@@ -119,45 +115,52 @@ def load_widget_html(widget_name: str) -> str:
     return html_content
 
 
-def create_widget_html(tasks: List[Dict[str, Any]]) -> str:
-    """Crea el HTML del widget con los datos de las tareas"""
-    html_template = load_widget_html("task-manager")
+def create_widget_html(notes: List[Dict[str, Any]]) -> str:
+    """Crea el HTML del widget con los datos de las notas"""
+    html_template = load_widget_html("second-brain")
     
-    # Inyectar datos de tareas en el HTML
-    tasks_json = json.dumps(tasks)
+    # Inyectar datos de notas en el HTML en el head, antes de los scripts de React
+    notes_json = json.dumps(notes)
     
-    # Insertar script antes del cierre de body
-    injection = f"""
+    # Insertar script en el head para que esté disponible antes de que React cargue
+    # Incluir también un script inline para asegurar que los datos estén disponibles
+    head_injection = f"""
     <script>
-        window.__TASK_DATA__ = {tasks_json};
+        // Asegurar que los datos estén disponibles antes de que React se monte
+        window.__NOTES_DATA__ = {notes_json};
+        console.log('Second Brain: Notes data loaded', window.__NOTES_DATA__);
     </script>
-    </body>
     """
-    html_template = html_template.replace("</body>", injection)
+    html_template = html_template.replace('</head>', head_injection + '</head>')
     
     return html_template
 
 
-def create_simple_card_html(tasks: List[Dict[str, Any]]) -> str:
-    """Crea una card HTML simple y minimalista con las tareas"""
-    incomplete = sum(1 for t in tasks if not t["completed"])
-    completed = sum(1 for t in tasks if t["completed"])
+def create_simple_card_html(notes: List[Dict[str, Any]]) -> str:
+    """Crea una card HTML simple y minimalista con las notas"""
+    total_notes = len(notes)
     
-    # Generar items de tareas
-    task_items = ""
-    for task in tasks[:5]:  # Solo mostrar las primeras 5
-        status = "✅" if task["completed"] else "⬜"
-        priority_color = {"high": "#ef4444", "medium": "#f59e0b", "low": "#10b981"}.get(task["priority"], "#6b7280")
-        opacity = "0.6" if task["completed"] else "1"
-        text_decoration = "line-through" if task["completed"] else "none"
+    # Generar items de notas
+    note_items = ""
+    for note in notes[:5]:  # Solo mostrar las primeras 5
+        category_color = {
+            "technology": "#3b82f6",
+            "learning": "#10b981",
+            "ideas": "#f59e0b",
+            "general": "#6b7280"
+        }.get(note.get("category", "general"), "#6b7280")
         
-        task_items += f"""
-        <div style="display: flex; align-items: start; gap: 8px; padding: 8px; border-left: 3px solid {priority_color}; background: rgba(0,0,0,0.02); border-radius: 4px; margin-bottom: 8px; opacity: {opacity};">
-            <span style="font-size: 16px;">{status}</span>
+        tags_html = ""
+        if note.get("tags"):
+            tags_html = f"<div style='font-size: 11px; color: #9ca3af; margin-top: 4px;'>🏷️ {', '.join(note['tags'][:3])}</div>"
+        
+        note_items += f"""
+        <div style="display: flex; align-items: start; gap: 8px; padding: 8px; border-left: 3px solid {category_color}; background: rgba(0,0,0,0.02); border-radius: 4px; margin-bottom: 8px;">
             <div style="flex: 1;">
-                <div style="font-weight: 600; color: #1f2937; text-decoration: {text_decoration};">{task['title']}</div>
-                {f"<div style='font-size: 13px; color: #6b7280; margin-top: 2px;'>{task.get('description', '')}</div>" if task.get('description') else ""}
-                {f"<div style='font-size: 12px; color: #9ca3af; margin-top: 4px;'>📅 {task.get('dueDate', '')}</div>" if task.get('dueDate') else ""}
+                <div style="font-weight: 600; color: #1f2937;">{note['title']}</div>
+                {f"<div style='font-size: 13px; color: #6b7280; margin-top: 2px;'>{note.get('description', '')}</div>" if note.get('description') else ""}
+                {f"<div style='font-size: 12px; color: #9ca3af; margin-top: 4px;'>📅 {note.get('createdAt', '')}</div>" if note.get('createdAt') else ""}
+                {tags_html}
             </div>
         </div>
         """
@@ -168,19 +171,18 @@ def create_simple_card_html(tasks: List[Dict[str, Any]]) -> str:
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Task Summary</title>
+        <title>Second Brain Summary</title>
     </head>
     <body style="margin: 0; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
         <div style="max-width: 500px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 20px; border: 1px solid #e5e7eb;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                <h2 style="margin: 0; font-size: 20px; color: #111827;">📋 Mis Tareas</h2>
+                <h2 style="margin: 0; font-size: 20px; color: #111827;">🧠 Second Brain</h2>
                 <div style="display: flex; gap: 12px; font-size: 14px;">
-                    <span style="background: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 12px; font-weight: 600;">⬜ {incomplete}</span>
-                    <span style="background: #d1fae5; color: #065f46; padding: 4px 10px; border-radius: 12px; font-weight: 600;">✅ {completed}</span>
+                    <span style="background: #dbeafe; color: #1e40af; padding: 4px 10px; border-radius: 12px; font-weight: 600;">📝 {total_notes}</span>
                 </div>
             </div>
             <div style="margin-top: 16px;">
-                {task_items}
+                {note_items}
             </div>
             <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e5e7eb; text-align: center;">
                 <a href="{BASE_URL}/widget" target="_blank" style="color: #2563eb; text-decoration: none; font-size: 14px; font-weight: 500;">🔗 Ver widget completo →</a>
@@ -195,8 +197,8 @@ def create_simple_card_html(tasks: List[Dict[str, Any]]) -> str:
 
 # Configurar FastAPI
 app = FastAPI(
-    title="Task Manager Demo Server",
-    description="Servidor de ejemplo para gestión de tareas con widget interactivo",
+    title="Second Brain Server",
+    description="Servidor para Second Brain - gestión de notas y conocimiento personal",
     version="1.0.0",
 )
 
@@ -220,11 +222,11 @@ if ASSETS_DIR.exists():
 async def root():
     """Endpoint de información"""
     return {
-        "name": "Task Manager Demo Server",
+        "name": "Second Brain Server",
         "version": "1.0.0",
         "status": "running",
         "endpoints": {
-            "tasks": "/tasks",
+            "notes": "/notes",
             "widget": "/widget",
             "mcp_tools": "/mcp/tools",
             "mcp_call": "/mcp/call"
@@ -235,46 +237,46 @@ async def root():
 @app.get("/health")
 async def health():
     """Health check"""
-    return {"status": "healthy", "tasks_count": len(tasks_db)}
+    return {"status": "healthy", "notes_count": len(notes_db)}
 
 
-@app.get("/tasks", response_model=List[Task])
-async def get_tasks():
-    """Obtener todas las tareas"""
-    return tasks_db
+@app.get("/notes", response_model=List[Note])
+async def get_notes():
+    """Obtener todas las notas"""
+    return notes_db
 
 
-@app.post("/tasks", response_model=Task)
-async def create_task(task: Task):
-    """Crear una nueva tarea"""
-    task.id = str(len(tasks_db) + 1)
-    task_dict = task.model_dump()
-    tasks_db.append(task_dict)
-    return task_dict
+@app.post("/notes", response_model=Note)
+async def create_note(note: Note):
+    """Crear una nueva nota"""
+    note.id = str(len(notes_db) + 1)
+    if not note.createdAt:
+        note.createdAt = datetime.now().strftime("%Y-%m-%d")
+    note_dict = note.model_dump()
+    notes_db.append(note_dict)
+    return note_dict
 
 
-@app.patch("/tasks/{task_id}", response_model=Task)
-async def update_task(task_id: str, task_update: TaskUpdate):
-    """Actualizar el estado de una tarea"""
-    task = next((t for t in tasks_db if t["id"] == task_id), None)
-    if not task:
-        raise HTTPException(status_code=404, detail="Tarea no encontrada")
-    
-    task["completed"] = task_update.completed
-    return task
+@app.get("/notes/{note_id}", response_model=Note)
+async def get_note(note_id: str):
+    """Obtener una nota específica"""
+    note = next((n for n in notes_db if n["id"] == note_id), None)
+    if not note:
+        raise HTTPException(status_code=404, detail="Nota no encontrada")
+    return note
 
 
 @app.get("/widget", response_class=HTMLResponse)
 async def get_widget():
     """Obtener el widget HTML con los datos actuales"""
-    widget_html = create_widget_html(tasks_db)
+    widget_html = create_widget_html(notes_db)
     return HTMLResponse(content=widget_html)
 
 
 @app.get("/card", response_class=HTMLResponse)
 async def get_card():
-    """Obtener una card HTML simple con las tareas"""
-    card_html = create_simple_card_html(tasks_db)
+    """Obtener una card HTML simple con las notas"""
+    card_html = create_simple_card_html(notes_db)
     return HTMLResponse(content=card_html)
 
 
@@ -302,7 +304,7 @@ async def mcp_handler(request: Dict[str, Any]):
                     "resources": {}
                 },
                 "serverInfo": {
-                    "name": "Task Manager MCP Server",
+                    "name": "Second Brain MCP Server",
                     "version": "1.0.0"
                 }
             }
@@ -310,16 +312,16 @@ async def mcp_handler(request: Dict[str, Any]):
     
     # List Resources - CRÍTICO para widgets
     elif method == "resources/list":
-        card_html = create_simple_card_html(tasks_db)
+        card_html = create_simple_card_html(notes_db)
         return {
             "jsonrpc": "2.0",
             "id": request_id,
             "result": {
                 "resources": [
                     {
-                        "uri": "ui://widget/task-manager.html",
-                        "name": "Task Manager Widget",
-                        "description": "Widget interactivo para gestionar tareas",
+                        "uri": "ui://widget/second-brain.html",
+                        "name": "Second Brain Widget",
+                        "description": "Widget interactivo para gestionar notas y conocimiento",
                         "mimeType": "text/html+skybridge"
                     }
                 ]
@@ -329,15 +331,15 @@ async def mcp_handler(request: Dict[str, Any]):
     # Read Resource - Devuelve el HTML del widget principal de React
     elif method == "resources/read":
         uri = params.get("uri")
-        if uri == "ui://widget/task-manager.html":
-            widget_html = create_widget_html(tasks_db)
+        if uri == "ui://widget/second-brain.html":
+            widget_html = create_widget_html(notes_db)
             return {
                 "jsonrpc": "2.0",
                 "id": request_id,
                 "result": {
                     "contents": [
                         {
-                            "uri": "ui://widget/task-manager.html",
+                            "uri": "ui://widget/second-brain.html",
                             "mimeType": "text/html+skybridge",
                             "text": widget_html,
                             "_meta": {
@@ -365,52 +367,51 @@ async def mcp_handler(request: Dict[str, Any]):
             "result": {
                 "tools": [
                     {
-                        "name": "get_tasks",
-                        "description": "Obtiene todas las tareas del usuario con un widget interactivo",
+                        "name": "get_notes",
+                        "description": "Obtiene todas las notas del Second Brain con un widget interactivo",
                         "inputSchema": {
                             "type": "object",
                             "properties": {},
                         },
                         "_meta": {
-                            "openai/outputTemplate": "ui://widget/task-manager.html",
-                            "openai/toolInvocation/invoking": "Obteniendo tareas",
-                            "openai/toolInvocation/invoked": "Tareas obtenidas"
+                            "openai/outputTemplate": "ui://widget/second-brain.html",
+                            "openai/toolInvocation/invoking": "Obteniendo notas",
+                            "openai/toolInvocation/invoked": "Notas obtenidas"
                         }
                     },
                     {
-                        "name": "create_task",
-                        "description": "Crea una nueva tarea",
+                        "name": "create_note",
+                        "description": "Crea una nueva nota en el Second Brain",
                         "inputSchema": {
                             "type": "object",
                             "properties": {
-                                "title": {"type": "string", "description": "Título de la tarea"},
-                                "description": {"type": "string", "description": "Descripción detallada"},
-                                "dueDate": {"type": "string", "description": "Fecha YYYY-MM-DD"},
-                                "priority": {"type": "string", "enum": ["low", "medium", "high"], "default": "medium"},
+                                "title": {"type": "string", "description": "Título de la nota"},
+                                "description": {"type": "string", "description": "Contenido detallado de la nota"},
+                                "category": {"type": "string", "enum": ["general", "technology", "learning", "ideas"], "default": "general", "description": "Categoría de la nota"},
+                                "tags": {"type": "array", "items": {"type": "string"}, "description": "Lista de etiquetas"},
                             },
                             "required": ["title"],
                         },
                         "_meta": {
-                            "openai/outputTemplate": "ui://widget/task-manager.html",
-                            "openai/toolInvocation/invoking": "Creando tarea",
-                            "openai/toolInvocation/invoked": "Tarea creada"
+                            "openai/outputTemplate": "ui://widget/second-brain.html",
+                            "openai/toolInvocation/invoking": "Creando nota",
+                            "openai/toolInvocation/invoked": "Nota creada"
                         }
                     },
                     {
-                        "name": "update_task_status",
-                        "description": "Actualiza el estado de una tarea",
+                        "name": "get_note",
+                        "description": "Obtiene una nota específica por su ID",
                         "inputSchema": {
                             "type": "object",
                             "properties": {
-                                "task_id": {"type": "string", "description": "ID de la tarea"},
-                                "completed": {"type": "boolean", "description": "Estado completado"},
+                                "note_id": {"type": "string", "description": "ID de la nota"},
                             },
-                            "required": ["task_id", "completed"],
+                            "required": ["note_id"],
                         },
                         "_meta": {
-                            "openai/outputTemplate": "ui://widget/task-manager.html",
-                            "openai/toolInvocation/invoking": "Actualizando tarea",
-                            "openai/toolInvocation/invoked": "Tarea actualizada"
+                            "openai/outputTemplate": "ui://widget/second-brain.html",
+                            "openai/toolInvocation/invoking": "Buscando nota",
+                            "openai/toolInvocation/invoked": "Nota encontrada"
                         }
                     }
                 ]
@@ -422,9 +423,8 @@ async def mcp_handler(request: Dict[str, Any]):
         tool_name = params.get("name")
         arguments = params.get("arguments", {})
         
-        if tool_name == "get_tasks":
-            incomplete = sum(1 for t in tasks_db if not t["completed"])
-            completed = sum(1 for t in tasks_db if t["completed"])
+        if tool_name == "get_notes":
+            total_notes = len(notes_db)
             
             # Formato oficial OpenAI Apps SDK
             return {
@@ -434,25 +434,25 @@ async def mcp_handler(request: Dict[str, Any]):
                     "content": [
                         {
                             "type": "text",
-                            "text": f"Tienes {incomplete} tarea(s) pendiente(s) y {completed} completada(s)."
+                            "text": f"Tienes {total_notes} nota(s) en tu Second Brain."
                         }
                     ],
                     "structuredContent": {
-                        "tasks": tasks_db
+                        "notes": notes_db
                     }
                 }
             }
         
-        elif tool_name == "create_task":
-            new_task = {
-                "id": str(len(tasks_db) + 1),
-                "title": arguments.get("title", "Nueva tarea"),
+        elif tool_name == "create_note":
+            new_note = {
+                "id": str(len(notes_db) + 1),
+                "title": arguments.get("title", "Nueva nota"),
                 "description": arguments.get("description"),
-                "dueDate": arguments.get("dueDate"),
-                "completed": False,
-                "priority": arguments.get("priority", "medium"),
+                "createdAt": datetime.now().strftime("%Y-%m-%d"),
+                "category": arguments.get("category", "general"),
+                "tags": arguments.get("tags", []),
             }
-            tasks_db.append(new_task)
+            notes_db.append(new_note)
             
             # Formato oficial OpenAI Apps SDK
             return {
@@ -462,32 +462,28 @@ async def mcp_handler(request: Dict[str, Any]):
                     "content": [
                         {
                             "type": "text",
-                            "text": f"Tarea creada: \"{new_task['title']}\"."
+                            "text": f"Nota creada: \"{new_note['title']}\"."
                         }
                     ],
                     "structuredContent": {
-                        "tasks": tasks_db
+                        "notes": notes_db
                     }
                 }
             }
         
-        elif tool_name == "update_task_status":
-            task_id = arguments.get("task_id")
-            completed = arguments.get("completed")
-            task = next((t for t in tasks_db if t["id"] == task_id), None)
+        elif tool_name == "get_note":
+            note_id = arguments.get("note_id")
+            note = next((n for n in notes_db if n["id"] == note_id), None)
             
-            if not task:
+            if not note:
                 return {
                     "jsonrpc": "2.0",
                     "id": request_id,
                     "error": {
                         "code": -32602,
-                        "message": f"Tarea {task_id} no encontrada"
+                        "message": f"Nota {note_id} no encontrada"
                     }
                 }
-            
-            task["completed"] = completed
-            status_text = "completada" if completed else "pendiente"
             
             # Formato oficial OpenAI Apps SDK
             return {
@@ -497,11 +493,11 @@ async def mcp_handler(request: Dict[str, Any]):
                     "content": [
                         {
                             "type": "text",
-                            "text": f"Tarea \"{task['title']}\" marcada como {status_text}."
+                            "text": f"Nota encontrada: \"{note['title']}\"."
                         }
                     ],
                     "structuredContent": {
-                        "tasks": tasks_db
+                        "notes": [note]
                     }
                 }
             }
@@ -528,7 +524,7 @@ async def mcp_options():
 async def list_tools_get():
     """Lista las herramientas disponibles (para debugging)"""
     return {
-        "tools": ["get_tasks", "create_task", "update_task_status"],
+        "tools": ["get_notes", "create_note", "get_note"],
         "note": "Use POST /mcp with JSON-RPC 2.0 format for actual MCP communication"
     }
 

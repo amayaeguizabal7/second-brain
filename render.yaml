@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: task-manager
+    name: second-brain
     env: python
     buildCommand: npm install && npm run build && pip install -r server_python/requirements.txt
     startCommand: uvicorn server_python.main:app --host 0.0.0.0 --port $PORT

@@ -1,8 +1,8 @@
-# 🚀 GPT Apps SDK - Task Manager
+# 🧠 Second Brain - Personal Knowledge Manager
 
-**Aplicación de gestión de tareas integrada con ChatGPT** usando el [OpenAI Apps SDK](https://github.com/openai/openai-apps-sdk-examples) y el [Model Context Protocol (MCP)](https://modelcontextprotocol.io/).
+**Aplicación de gestión de conocimiento personal integrada con ChatGPT** usando el [OpenAI Apps SDK](https://github.com/openai/openai-apps-sdk-examples) y el [Model Context Protocol (MCP)](https://modelcontextprotocol.io/).
 
-Este proyecto demuestra cómo crear una aplicación completa que se integra directamente en ChatGPT, mostrando widgets interactivos de React que se actualizan dinámicamente cuando ChatGPT realiza acciones.
+Second Brain es tu sistema personal de gestión de conocimiento, notas, ideas y aprendizaje. Se integra directamente en ChatGPT, mostrando widgets interactivos de React que te permiten capturar, organizar y acceder a tu conocimiento personal de manera intuitiva.
 
 ![Demo](https://img.shields.io/badge/Status-Production-success)
 ![Python](https://img.shields.io/badge/Python-3.10+-blue)
@@ -34,7 +34,9 @@ Este proyecto demuestra cómo crear una aplicación completa que se integra dire
 
 - ✅ **Widget Interactivo de React** con [OpenAI Apps SDK UI](https://github.com/openai/apps-sdk-ui)
 - ✅ **Servidor MCP** en Python/FastAPI que expone herramientas a ChatGPT
-- ✅ **Actualización Dinámica** - El widget se actualiza cuando ChatGPT crea/completa tareas
+- ✅ **Gestión de Notas** - Crea, organiza y busca tus notas e ideas
+- ✅ **Categorías y Etiquetas** - Organiza tu conocimiento por categorías y etiquetas
+- ✅ **Actualización Dinámica** - El widget se actualiza cuando ChatGPT crea nuevas notas
 - ✅ **Diseño Moderno** con Tailwind CSS 4 y componentes accesibles
 - ✅ **Desplegado en Render** - Listo para usar en producción
 - ✅ **JSON-RPC 2.0** - Protocolo MCP estándar
@@ -53,25 +55,27 @@ Este proyecto demuestra cómo crear una aplicación completa que se integra dire
                          JSON-RPC 2.0              Apps SDK UI
 ```
 
-1. **Usuario pregunta** a ChatGPT: *"Muéstrame mis tareas"*
+1. **Usuario pregunta** a ChatGPT: *"Muéstrame mis notas"*
 2. **ChatGPT llama** al servidor MCP usando JSON-RPC 2.0
 3. **Servidor responde** con datos estructurados + HTML del widget
 4. **ChatGPT renderiza** el widget React directamente en la conversación
-5. **Usuario interactúa** con el widget (completar tareas, etc.)
-6. **Widget se actualiza** dinámicamente cuando ChatGPT crea nuevas tareas
+5. **Usuario interactúa** con el widget (ver notas, crear nuevas, etc.)
+6. **Widget se actualiza** dinámicamente cuando ChatGPT crea nuevas notas
 
 ---
 
 ## 🌐 Demo en Vivo
 
+**Nota:** Actualiza estas URLs con tu propia implementación una vez desplegada.
+
 **Servidor en Producción:**  
-🔗 [https://app-gpt-s9jl.onrender.com](https://app-gpt-s9jl.onrender.com)
+🔗 `https://tu-second-brain.onrender.com`
 
 **Endpoint MCP:**  
-🔗 [https://app-gpt-s9jl.onrender.com/mcp](https://app-gpt-s9jl.onrender.com/mcp)
+🔗 `https://tu-second-brain.onrender.com/mcp`
 
 **Widget de Prueba:**  
-🔗 [https://app-gpt-s9jl.onrender.com/widget](https://app-gpt-s9jl.onrender.com/widget)
+🔗 `https://tu-second-brain.onrender.com/widget`
 
 ---
 
@@ -89,8 +93,8 @@ Este proyecto demuestra cómo crear una aplicación completa que se integra dire
 ### 1️⃣ Clonar el Repositorio
 
 ```bash
-git clone https://github.com/Raul-Marin/app-GPT.git
-cd app-GPT
+git clone https://github.com/amayaeguizabal7/second-brain.git
+cd second-brain
 ```
 
 ### 2️⃣ Instalar Dependencias de Node.js
@@ -208,9 +212,9 @@ git push origin main
 3. Click en **Add Connector** ➕
 4. Configura:
    ```
-   Name: Tareas
+   Name: Second Brain
    Type: MCP
-   URL: https://app-gpt-s9jl.onrender.com/mcp
+   URL: https://tu-second-brain.onrender.com/mcp
    ```
 5. Click en **Save** y luego **Refresh** ↻
 
@@ -219,31 +223,31 @@ git push origin main
 Inicia una nueva conversación y prueba:
 
 ```
-👤 "Muéstrame mis tareas"
+👤 "Muéstrame mis notas"
 ```
 
-ChatGPT mostrará el widget interactivo con tus tareas.
+ChatGPT mostrará el widget interactivo con tus notas.
 
 ```
-👤 "Crea una tarea urgente para revisar el código"
+👤 "Crea una nota sobre arquitectura de software con las etiquetas 'tecnología' y 'aprendizaje'"
 ```
 
-El widget se actualizará automáticamente con la nueva tarea.
+El widget se actualizará automáticamente con la nueva nota.
 
 ```
-👤 "Marca como completada la primera tarea"
+👤 "Guarda esta idea: crear una app de gestión de proyectos"
 ```
 
-La tarea se marcará como completada en el widget.
+ChatGPT guardará la idea como una nueva nota en tu Second Brain.
 
 ---
 
 ## 📁 Estructura del Proyecto
 
 ```
-app-GPT/
+second-brain/
 ├── src/
-│   └── task-manager/              # Widget de React
+│   └── second-brain/              # Widget de React
 │       ├── index.html             # HTML base del widget
 │       ├── main.tsx               # Entry point React
 │       ├── App.tsx                # Componente principal con estado
@@ -254,11 +258,11 @@ app-GPT/
 │   └── requirements.txt           # Dependencias Python
 │
 ├── dist/                          # Assets compilados (generado)
-│   ├── src/task-manager/
+│   ├── src/second-brain/
 │   │   └── index.html
 │   └── assets/
-│       ├── task-manager-*.js
-│       └── task-manager-*.css
+│       ├── second-brain-*.js
+│       └── second-brain-*.css
 │
 ├── package.json                   # Dependencias Node.js
 ├── vite.config.ts                 # Configuración Vite
@@ -319,7 +323,7 @@ El widget se embebe en ChatGPT usando el MIME type `text/html+skybridge`:
 ```python
 # server_python/main.py
 {
-    "uri": "ui://widget/task-manager.html",
+    "uri": "ui://widget/second-brain.html",
     "mimeType": "text/html+skybridge",
     "text": "<html>...</html>"
 }
@@ -328,16 +332,16 @@ El widget se embebe en ChatGPT usando el MIME type `text/html+skybridge`:
 ### 2. Estado Dinámico en React
 
 ```typescript
-// src/task-manager/App.tsx
-const [tasks, setTasks] = useState(() => {
-  return window.openai?.toolOutput?.tasks || defaultTasks;
+// src/second-brain/App.tsx
+const [notes, setNotes] = useState(() => {
+  return window.openai?.toolOutput?.notes || defaultNotes;
 });
 
 // Escuchar eventos de ChatGPT
 useEffect(() => {
   const handleSetGlobals = (event: any) => {
-    if (event.detail?.globals?.toolOutput?.tasks) {
-      setTasks(event.detail.globals.toolOutput.tasks);
+    if (event.detail?.globals?.toolOutput?.notes) {
+      setNotes(event.detail.globals.toolOutput.notes);
     }
   };
   
@@ -349,21 +353,18 @@ useEffect(() => {
 ### 3. Interacción con MCP Tools
 
 ```typescript
-// Usuario hace click en una tarea
-const handleToggleTask = async (taskId: string) => {
-  // Actualización optimista
-  setTasks(prev => prev.map(task => 
-    task.id === taskId ? { ...task, completed: !task.completed } : task
-  ));
+// El widget se actualiza automáticamente cuando ChatGPT crea notas
+// Las notas se sincronizan mediante eventos de OpenAI
+useEffect(() => {
+  const handleSetGlobals = (event: any) => {
+    if (event.detail?.globals?.toolOutput?.notes) {
+      setNotes(event.detail.globals.toolOutput.notes);
+    }
+  };
   
-  // Llamar al MCP tool
-  if (window.openai?.callTool) {
-    const response = await window.openai.callTool("update_task_status", {
-      task_id: taskId,
-      completed: true
-    });
-  }
-};
+  window.addEventListener("openai:set_globals", handleSetGlobals);
+  return () => window.removeEventListener("openai:set_globals", handleSetGlobals);
+}, []);
 ```
 
 ### 4. Protocolo MCP (JSON-RPC 2.0)
@@ -375,7 +376,7 @@ const handleToggleTask = async (taskId: string) => {
   "id": 1,
   "method": "tools/call",
   "params": {
-    "name": "get_tasks",
+    "name": "get_notes",
     "arguments": {}
   }
 }
@@ -388,23 +389,23 @@ const handleToggleTask = async (taskId: string) => {
     "content": [
       {
         "type": "text",
-        "text": "📋 Tienes 3 tareas"
+        "text": "🧠 Tienes 3 notas en tu Second Brain"
       },
       {
         "type": "resource",
         "resource": {
-          "uri": "ui://widget/task-manager.html",
+          "uri": "ui://widget/second-brain.html",
           "mimeType": "text/html+skybridge",
           "text": "<html>...</html>"
         }
       }
     ],
     "structuredContent": {
-      "tasks": [...],
+      "notes": [...],
       "_meta": {
         "openai/outputTemplate": {
           "type": "resource",
-          "resource": "ui://widget/task-manager.html"
+          "resource": "ui://widget/second-brain.html"
         }
       }
     }
@@ -473,7 +474,7 @@ const handleToggleTask = async (taskId: string) => {
 
 ## 🐛 Reportar Issues
 
-Si encuentras algún problema, por favor [abre un issue](https://github.com/Raul-Marin/app-GPT/issues) con:
+Si encuentras algún problema, por favor abre un issue con:
 - Descripción del problema
 - Pasos para reproducir
 - Comportamiento esperado vs actual
@@ -489,7 +490,10 @@ Este proyecto está bajo la licencia MIT. Ver el archivo [LICENSE](./LICENSE) pa
 
 ## 👤 Autor
 
-**Raul Marin**  
+**Amaya Eguizabal**  
+- GitHub: [@amayaeguizabal7](https://github.com/amayaeguizabal7)
+
+Basado en el proyecto original de **Raul Marin**  
 - GitHub: [@Raul-Marin](https://github.com/Raul-Marin)
 
 ---
